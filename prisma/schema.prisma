@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         Int    @id @default(autoincrement())
+  email      String @unique
+  username   String @unique
+  name       String
+
+  groups   UserGroup[]
+  items    ItemUser[]
+  payments TicketPayment[]
+}
+
+model Group {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  users   UserGroup[]
+  tickets Ticket[]
+}
+
+model UserGroup {
+  userId  Int
+  groupId Int
+
+  user  User  @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+}
+
+model Ticket {
+  id      Int @id @default(autoincrement())
+  groupId Int
+
+  state   TicketState @default(UPLOADED)
+
+  group    Group          @relation(fields: [groupId], references: [id])
+  items    Item[]
+  payments TicketPayment[]
+} 
+
+enum TicketState {
+  UPLOADED
+  ITEMS_CONFIRMED
+  CONSUMERS_CONFIRMED
+  PAYERS_CONFIRMED
+  SETTLED
+  CANCELLED
+}
+
+model Item {
+  id       Int @id @default(autoincrement())
+  ticketId Int
+  price    Int // centavos
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  users  ItemUser[]
+}
+
+model ItemUser {
+  itemId Int
+  userId Int
+
+  item Item @relation(fields: [itemId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([itemId, userId])
+}
+
+model TicketPayment {
+  id       Int @id @default(autoincrement())
+  ticketId Int
+  userId   Int
+  amount   Int // centavos
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+}
+
