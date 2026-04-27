@@ -6,7 +6,13 @@ export interface SettlementUser {
 
 export interface SettlementItem {
   price: number;
-  users: SettlementUser[];
+  quantity: number;
+  users: SettlementConsumer[];
+}
+
+export interface SettlementConsumer {
+  user: SettlementUser;
+  quantity: number;
 }
 
 export interface SettlementPayment {
@@ -70,7 +76,10 @@ export class SettlementCalculatorService {
       .sort(this.sortByAmountDesc);
 
     return {
-      total: input.items.reduce((total, item) => total + item.price, 0),
+      total: input.items.reduce(
+        (total, item) => total + this.calculateItemTotal(item),
+        0,
+      ),
       payers: this.mapPayers(input.payments),
       debts: this.calculateDebts(debtors, creditors),
     };
@@ -80,22 +89,60 @@ export class SettlementCalculatorService {
     items: SettlementItem[],
   ): Map<number, number> {
     return items.reduce((consumedByUser, item) => {
-      const consumers = [...item.users].sort((a, b) => a.id - b.id);
+      const consumers = [...item.users].sort((a, b) => a.user.id - b.user.id);
 
-      if (consumers.length === 0) {
-        return consumedByUser;
-      }
+      this.validateItemQuantities(item, consumers);
 
-      const baseAmount = Math.floor(item.price / consumers.length);
-      const remainder = item.price % consumers.length;
+      const itemTotal = this.calculateItemTotal(item);
+      const baseAmounts = consumers.map((consumer) =>
+        Math.floor(item.price * consumer.quantity),
+      );
+      const allocatedAmount = baseAmounts.reduce(
+        (total, amount) => total + amount,
+        0,
+      );
+      let remainder = itemTotal - allocatedAmount;
 
       consumers.forEach((user, index) => {
-        const share = baseAmount + (index < remainder ? 1 : 0);
-        consumedByUser.set(user.id, (consumedByUser.get(user.id) ?? 0) + share);
+        const share = baseAmounts[index] + (remainder > 0 ? 1 : 0);
+        remainder -= remainder > 0 ? 1 : 0;
+        consumedByUser.set(
+          user.user.id,
+          (consumedByUser.get(user.user.id) ?? 0) + share,
+        );
       });
 
       return consumedByUser;
     }, new Map<number, number>());
+  }
+
+  private calculateItemTotal(item: SettlementItem): number {
+    if (!Number.isFinite(item.quantity) || item.quantity < 0) {
+      throw new RangeError('Item quantity must be a non-negative number');
+    }
+
+    return Math.round(item.price * item.quantity);
+  }
+
+  private validateItemQuantities(
+    item: SettlementItem,
+    consumers: SettlementConsumer[],
+  ): void {
+    this.calculateItemTotal(item);
+
+    const consumedQuantity = consumers.reduce((total, consumer) => {
+      if (!Number.isFinite(consumer.quantity) || consumer.quantity < 0) {
+        throw new RangeError(
+          'Item user quantity must be a non-negative number',
+        );
+      }
+
+      return total + consumer.quantity;
+    }, 0);
+
+    if (Math.abs(consumedQuantity - item.quantity) > Number.EPSILON) {
+      throw new RangeError('Item user quantities must match item quantity');
+    }
   }
 
   private calculatePaidByUser(
@@ -117,7 +164,9 @@ export class SettlementCalculatorService {
     const usersById = new Map<number, SettlementUser>();
 
     input.items.forEach((item) => {
-      item.users.forEach((user) => usersById.set(user.id, user));
+      item.users.forEach((consumer) =>
+        usersById.set(consumer.user.id, consumer.user),
+      );
     });
 
     input.payments.forEach((payment) => {

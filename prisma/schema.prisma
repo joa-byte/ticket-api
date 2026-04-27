@@ -59,14 +59,16 @@ model Item {
   id       Int @id @default(autoincrement())
   ticketId Int
   price    Int // centavos
+  quantity Float @default(1)
 
   ticket Ticket @relation(fields: [ticketId], references: [id])
   users  ItemUser[]
 }
 
 model ItemUser {
-  itemId Int
-  userId Int
+  itemId   Int
+  userId   Int
+  quantity Float @default(1)
 
   item Item @relation(fields: [itemId], references: [id])
   user User @relation(fields: [userId], references: [id])
@@ -83,4 +85,3 @@ model TicketPayment {
   ticket Ticket @relation(fields: [ticketId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 }
-

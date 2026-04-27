@@ -146,6 +146,7 @@ export class GeminiProvider implements AiProvider {
     return (
       typeof item.name === 'string' &&
       typeof item.quantity === 'number' &&
+      item.quantity >= 0 &&
       typeof item.unitPrice === 'number' &&
       typeof item.totalPrice === 'number'
     );

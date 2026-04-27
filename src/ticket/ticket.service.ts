@@ -46,11 +46,13 @@ export class TicketService {
           ? ticket.items.map((item) => ({
               id: item.id,
               price: item.price,
-              users: item.users.map(({ user }) => ({
+              quantity: item.quantity,
+              users: item.users.map(({ user, quantity }) => ({
                 id: user.id,
                 email: user.email,
                 username: user.username,
                 name: user.name,
+                quantity,
               })),
             }))
           : null,

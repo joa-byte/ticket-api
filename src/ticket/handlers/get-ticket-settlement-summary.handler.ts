@@ -54,7 +54,11 @@ export class GetTicketSettlementSummaryHandler {
     return {
       items: ticket.items.map((item) => ({
         price: item.price,
-        users: item.users.map(({ user }) => this.toSettlementUser(user)),
+        quantity: item.quantity,
+        users: item.users.map(({ user, quantity }) => ({
+          user: this.toSettlementUser(user),
+          quantity,
+        })),
       })),
       payments: ticket.payments.map((payment) => ({
         amount: payment.amount,
@@ -108,8 +112,10 @@ interface PrismaUser {
 interface TicketWithSettlementData {
   items: {
     price: number;
+    quantity: number;
     users: {
       user: PrismaUser;
+      quantity: number;
     }[];
   }[];
   payments: {

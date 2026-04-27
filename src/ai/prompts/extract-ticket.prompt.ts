@@ -21,7 +21,7 @@ Reglas:
   - total: 0
   - items: []
 - Los precios deben ser números, no strings.
-- quantity debe ser number.
+- quantity debe ser number y no puede ser negativo. Puede ser menor a 1.
 - No inventes items que no estén en el ticket.
 - Si un item no tiene precio unitario claro, usá el mismo valor que totalPrice.
 - El total debe ser el total final del ticket, no subtotal.
