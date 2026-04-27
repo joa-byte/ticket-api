@@ -41,18 +41,42 @@ model Ticket {
 
   state   TicketState @default(UPLOADED)
 
-  group    Group          @relation(fields: [groupId], references: [id])
-  items    Item[]
-  payments TicketPayment[]
+  group         Group                @relation(fields: [groupId], references: [id])
+  items         Item[]
+  payments      TicketPayment[]
+  aiExtractions TicketAiExtraction[]
 } 
 
 enum TicketState {
   UPLOADED
+  AI_PROCESSED
   ITEMS_CONFIRMED
   CONSUMERS_CONFIRMED
   PAYERS_CONFIRMED
   SETTLED
   CANCELLED
+}
+
+model TicketAiExtraction {
+  id       String @id @default(uuid())
+  ticketId Int
+
+  provider String
+  model    String?
+
+  rawResponse Json
+
+  status AiExtractionStatus @default(SUCCESS)
+  error  String?
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+}
+
+enum AiExtractionStatus {
+  SUCCESS
+  FAILED
 }
 
 model Item {

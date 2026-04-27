@@ -6,13 +6,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import type { Part } from '@google/genai';
+import type { Prisma } from '@prisma/client';
 import { ExtractTicketResponseDto } from '../dto/extract-ticket-response.dto';
 import { EXTRACT_TICKET_PROMPT } from '../prompts/extract-ticket.prompt';
-import { AiProvider } from './ai-provider.interface';
+import { AiProvider, AiTicketExtractionResult } from './ai-provider.interface';
 
 @Injectable()
 export class GeminiProvider implements AiProvider {
   private ai?: GoogleGenAI;
+  private readonly provider = 'gemini';
   private readonly model: string;
 
   constructor(private readonly configService: ConfigService) {
@@ -20,10 +22,17 @@ export class GeminiProvider implements AiProvider {
       this.configService.get<string>('GEMINI_MODEL') ?? 'gemini-2.5-flash';
   }
 
+  getContext() {
+    return {
+      provider: this.provider,
+      model: this.model,
+    };
+  }
+
   async extractTicketFromImage(
     imageBase64: string,
     mimeType: string,
-  ): Promise<ExtractTicketResponseDto> {
+  ): Promise<AiTicketExtractionResult> {
     if (!imageBase64 || !mimeType) {
       throw new BadRequestException('Image data and mimeType are required');
     }
@@ -45,7 +54,13 @@ export class GeminiProvider implements AiProvider {
       );
     }
 
-    return this.parseTicketResponse(text);
+    const parsed = this.parseTicketResponse(text);
+
+    return {
+      ...this.getContext(),
+      data: parsed.data,
+      rawResponse: parsed.rawResponse,
+    };
   }
 
   private buildContents(imageBase64: string, mimeType: string): Part[] {
@@ -80,7 +95,10 @@ export class GeminiProvider implements AiProvider {
     return this.ai;
   }
 
-  private parseTicketResponse(text: string): ExtractTicketResponseDto {
+  private parseTicketResponse(text: string): {
+    data: ExtractTicketResponseDto;
+    rawResponse: Prisma.InputJsonValue;
+  } {
     const cleanText = this.cleanJsonText(text);
     let parsed: unknown;
 
@@ -99,14 +117,17 @@ export class GeminiProvider implements AiProvider {
     }
 
     return {
-      storeName: parsed.storeName,
-      total: parsed.total,
-      items: parsed.items.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-      })),
+      data: {
+        storeName: parsed.storeName,
+        total: parsed.total,
+        items: parsed.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+        })),
+      },
+      rawResponse: parsed as unknown as Prisma.InputJsonValue,
     };
   }
 

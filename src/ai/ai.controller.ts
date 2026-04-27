@@ -1,13 +1,15 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  ParseIntPipe,
   Post,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AiService } from './ai.service';
-import { ExtractTicketResponseDto } from './dto/extract-ticket-response.dto';
+import { ExtractTicketResultDto } from './dto/extract-ticket-result.dto';
 
 @Controller('ai')
 export class AiController {
@@ -16,8 +18,9 @@ export class AiController {
   @Post('extract-ticket')
   @UseInterceptors(FileInterceptor('file'))
   extractTicket(
+    @Body('groupId', ParseIntPipe) groupId: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ExtractTicketResponseDto> {
+  ): Promise<ExtractTicketResultDto> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -28,6 +31,10 @@ export class AiController {
 
     const imageBase64 = file.buffer.toString('base64');
 
-    return this.aiService.extractTicketFromImage(imageBase64, file.mimetype);
+    return this.aiService.extractTicketFromImage(
+      groupId,
+      imageBase64,
+      file.mimetype,
+    );
   }
 }
