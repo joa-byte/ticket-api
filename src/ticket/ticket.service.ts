@@ -1,11 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TicketSettlementSummaryResponseDto } from './dto/ticket-settlement-summary-response.dto';
+import { GetTicketSettlementSummaryHandler } from './handlers/get-ticket-settlement-summary.handler';
 import { TicketResponseDto } from './dto/ticket-response.dto';
 import { GetTicketByIdQuery } from './queries/get-ticket-by-id.query';
+import { GetTicketSettlementSummaryQuery } from './queries/get-ticket-settlement-summary.query';
 
 @Injectable()
 export class TicketService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly getTicketSettlementSummaryHandler: GetTicketSettlementSummaryHandler,
+  ) {}
 
   async getById(query: GetTicketByIdQuery): Promise<TicketResponseDto> {
     const ticket = await this.prisma.ticket.findUnique({
@@ -62,5 +68,11 @@ export class TicketService {
             }))
           : null,
     };
+  }
+
+  getSettlementSummary(
+    query: GetTicketSettlementSummaryQuery,
+  ): Promise<TicketSettlementSummaryResponseDto> {
+    return this.getTicketSettlementSummaryHandler.execute(query);
   }
 }
