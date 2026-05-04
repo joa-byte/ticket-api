@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { FilesModule } from '../files/files.module';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { AI_PROVIDER } from './providers/ai-provider.interface';
 import { GeminiProvider } from './providers/gemini.provider';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, FilesModule],
   controllers: [AiController],
   providers: [
     AiService,

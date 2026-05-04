@@ -45,7 +45,24 @@ model Ticket {
   items         Item[]
   payments      TicketPayment[]
   aiExtractions TicketAiExtraction[]
+  files         File[]
 } 
+
+model File {
+  id        String   @id @default(uuid())
+  key       String
+  url       String
+  mimeType  String
+  size      Int
+  provider  String
+  createdAt DateTime @default(now())
+
+  ticketId Int?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@map("files")
+}
 
 enum TicketState {
   UPLOADED

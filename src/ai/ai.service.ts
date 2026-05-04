@@ -1,5 +1,7 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AiExtractionStatus, Prisma, TicketState } from '@prisma/client';
+import { UploadTicketImageCommand } from '../files/application/commands/upload-ticket-image.command';
+import { UploadTicketImageHandler } from '../files/application/commands/upload-ticket-image.handler';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExtractTicketResultDto } from './dto/extract-ticket-result.dto';
 import { AI_PROVIDER } from './providers/ai-provider.interface';
@@ -10,16 +12,22 @@ import type {
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
   constructor(
     @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
     private readonly prisma: PrismaService,
+    private readonly uploadTicketImageHandler: UploadTicketImageHandler,
   ) {}
 
   async extractTicketFromImage(
     groupId: number,
-    imageBase64: string,
-    mimeType: string,
+    file: Express.Multer.File,
   ): Promise<ExtractTicketResultDto> {
+    this.logger.log(
+      `Starting AI ticket extraction groupId=${groupId} originalName=${file.originalname} mimetype=${file.mimetype} size=${file.size}`,
+    );
+
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       select: { id: true },
@@ -29,6 +37,8 @@ export class AiService {
       throw new NotFoundException(`Group with id ${groupId} not found`);
     }
 
+    this.logger.log(`Group found for AI ticket extraction groupId=${groupId}`);
+
     const ticket = await this.prisma.ticket.create({
       data: {
         groupId,
@@ -37,10 +47,16 @@ export class AiService {
       select: { id: true },
     });
 
+    this.logger.log(
+      `Created uploaded ticket before image storage ticketId=${ticket.id} groupId=${groupId}`,
+    );
+
+    this.startLegacyImageUpload(ticket.id, file);
+
     const extraction = await this.extractWithFailureLog(
       ticket.id,
-      imageBase64,
-      mimeType,
+      file.buffer.toString('base64'),
+      file.mimetype,
     );
 
     await this.prisma.$transaction([
@@ -59,6 +75,10 @@ export class AiService {
       }),
     ]);
 
+    this.logger.log(
+      `AI ticket extraction completed ticketId=${ticket.id} provider=${extraction.provider} model=${extraction.model}`,
+    );
+
     return {
       ticketId: ticket.id,
       ...extraction.data,
@@ -71,12 +91,23 @@ export class AiService {
     mimeType: string,
   ): Promise<AiTicketExtractionResult> {
     try {
+      const context = this.aiProvider.getContext();
+
+      this.logger.log(
+        `Calling AI provider for ticket extraction ticketId=${ticketId} provider=${context.provider} model=${context.model} mimeType=${mimeType} imageBase64Length=${imageBase64.length}`,
+      );
+
       return await this.aiProvider.extractTicketFromImage(
         imageBase64,
         mimeType,
       );
     } catch (error) {
       const context = this.aiProvider.getContext();
+
+      this.logger.error(
+        `AI provider extraction failed ticketId=${ticketId} provider=${context.provider} model=${context.model} error=${this.getErrorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
 
       await this.prisma.ticketAiExtraction.create({
         data: {
@@ -99,5 +130,26 @@ export class AiService {
     }
 
     return 'Unknown AI extraction error';
+  }
+
+  private startLegacyImageUpload(
+    ticketId: number,
+    file: Express.Multer.File,
+  ): void {
+    this.logger.log(
+      `Starting legacy image upload in background ticketId=${ticketId}`,
+    );
+
+    void this.uploadTicketImageHandler
+      .execute(new UploadTicketImageCommand(ticketId, file))
+      .then(() => {
+        this.logger.log(`Legacy image upload completed ticketId=${ticketId}`);
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Legacy image upload failed ticketId=${ticketId} error=${this.getErrorMessage(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
   }
 }
