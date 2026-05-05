@@ -4,6 +4,8 @@ import { TicketResponseDto } from './dto/ticket-response.dto';
 import { TicketService } from './ticket.service';
 import { GetTicketByIdQuery } from './queries/get-ticket-by-id.query';
 import { GetTicketSettlementSummaryQuery } from './queries/get-ticket-settlement-summary.query';
+import { GetTicketAiExtractionQuery } from './queries/get-ticket-ai-extraction.query';
+import { ExtractTicketResponseDto } from '../ai/dto/extract-ticket-response.dto';
 
 @Controller('tickets')
 export class TicketController {
@@ -20,6 +22,15 @@ export class TicketController {
   ): Promise<TicketSettlementSummaryResponseDto> {
     return this.ticketService.getSettlementSummary(
       new GetTicketSettlementSummaryQuery(id),
+    );
+  }
+
+  @Get(':id/ai-extraction')
+  getAiExtraction(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ExtractTicketResponseDto> {
+    return this.ticketService.getAiExtraction(
+      new GetTicketAiExtractionQuery(id),
     );
   }
 }

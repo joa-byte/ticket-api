@@ -2,15 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketSettlementSummaryResponseDto } from './dto/ticket-settlement-summary-response.dto';
 import { GetTicketSettlementSummaryHandler } from './handlers/get-ticket-settlement-summary.handler';
+import { GetTicketAiExtractionHandler } from './handlers/get-ticket-ai-extraction.handler';
 import { TicketResponseDto } from './dto/ticket-response.dto';
 import { GetTicketByIdQuery } from './queries/get-ticket-by-id.query';
 import { GetTicketSettlementSummaryQuery } from './queries/get-ticket-settlement-summary.query';
+import { GetTicketAiExtractionQuery } from './queries/get-ticket-ai-extraction.query';
+import { ExtractTicketResponseDto } from '../ai/dto/extract-ticket-response.dto';
 
 @Injectable()
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly getTicketSettlementSummaryHandler: GetTicketSettlementSummaryHandler,
+    private readonly getTicketAiExtractionHandler: GetTicketAiExtractionHandler,
   ) {}
 
   async getById(query: GetTicketByIdQuery): Promise<TicketResponseDto> {
@@ -76,5 +80,11 @@ export class TicketService {
     query: GetTicketSettlementSummaryQuery,
   ): Promise<TicketSettlementSummaryResponseDto> {
     return this.getTicketSettlementSummaryHandler.execute(query);
+  }
+
+  getAiExtraction(
+    query: GetTicketAiExtractionQuery,
+  ): Promise<ExtractTicketResponseDto> {
+    return this.getTicketAiExtractionHandler.execute(query);
   }
 }
